@@ -85,10 +85,40 @@ Untuk dev lokal yang perlu koneksi langsung ke DB/Redis dari host, salin `docker
 ## Deploy Dokploy (Compose Service)
 
 1. Upload repo / set root compose ke folder `wilayah_api`.
-2. Pastikan file `.env` ada di service (atai variabel di panel Dokploy). Di dalam stack, `docker-compose.yml` sudah meng-override `DATABASE_URL` dan `REDIS_URL` ke service internal — tidak perlu `localhost` di container app.
-3. Map domain di Dokploy ke container **app** port **8000** (bukan redis/postgres).
-4. Set `APP_ENV=production`, `APP_DEBUG=false`, dan `APP_URL` ke URL publik API.
-5. Redeploy setelah perubahan compose.
+2. Tab **Environment** — jangan pakai `localhost` untuk DB/Redis. Gunakan hostname service Docker:
+
+```env
+DATABASE_URL=postgresql+psycopg://wilayah:wilayah_password@postgres:5432/wilayah_db
+REDIS_URL=redis://redis:6379/0
+APP_URL=https://api-wilayah.ngedeploy.online
+APP_ENV=production
+APP_DEBUG=false
+```
+
+(`docker-compose.yml` juga meng-set `DATABASE_URL` / `REDIS_URL` internal; nilai di panel Dokploy jangan menimpa dengan `localhost`.)
+
+3. Tab **Domains**: service `app`, port `8000`, path `/`, HTTPS Letsencrypt. Klik **Validate DNS** sampai hijau.
+4. Domain di browser, DNS A record, `APP_URL`, dan tab Domains harus **sama persis** (mis. `api-wilayah.ngedeploy.online` — bukan `ngodingdeploy` vs `ngedeploy`).
+5. Setelah ubah domain/env, wajib **Redeploy** (Compose pakai label Traefik; tidak auto-update seperti app biasa).
+6. Klik **Preview Compose** — pastikan service `app` dapat label `traefik.enable=true` dan port `8000`.
+
+### Troubleshooting `404 page not found` (teks polos, bukan JSON FastAPI)
+
+Itu respons **Traefik**, bukan FastAPI. Artinya proxy belum menemukan backend.
+
+| Gejala | Penyebab umum |
+|--------|----------------|
+| `404 page not found` | Host salah / DNS belum ke server / domain belum di-redeploy |
+| `503 Service Unavailable` | Container `app` tidak jalan (postgres healthcheck gagal, crash, dll.) |
+| FastAPI `{"detail":"Not Found"}` | Routing OK; path API salah |
+
+Checklist:
+
+- Buka domain yang **sama** dengan tab Domains (cek typo subdomain/Tld).
+- Logs service `app` — harus ada baris Uvicorn `Application startup complete`.
+- Jangan pakai `ports: "8000:8000"` di compose untuk Dokploy; cukup `ports: - 8000`.
+- Hapus `container_name` di compose (sudah dihapus di repo ini).
+- Jika `app` tidak pernah start: cek logs `postgres` (seed `./db` bisa kosong di redeploy AutoDeploy — pertimbangkan volume/file mount Dokploy).
 
 Jika deploy gagal dengan `port is already allocated` pada `6379` atau `5432`, pastikan compose terbaru dipakai (redis/postgres tanpa `ports:` ke host).
 

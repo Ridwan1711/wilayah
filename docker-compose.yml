@@ -1,14 +1,14 @@
 services:
   app:
     build: .
-    container_name: wilayah-api
     env_file:
       - .env
     environment:
       DATABASE_URL: postgresql+psycopg://wilayah:wilayah_password@postgres:5432/wilayah_db
       REDIS_URL: redis://redis:6379/0
+    # Dokploy: expose port container saja (bukan 8000:8000 ke host).
     ports:
-      - "8000:8000"
+      - 8000
     depends_on:
       postgres:
         condition: service_healthy
@@ -18,13 +18,10 @@ services:
 
   postgres:
     image: postgres:16-alpine
-    container_name: wilayah-postgres
     environment:
       POSTGRES_DB: wilayah_db
       POSTGRES_USER: wilayah
       POSTGRES_PASSWORD: wilayah_password
-    # Tanpa publish port ke host — hindari bentrok 5432/6379 di server (Dokploy, dll).
-    # App mengakses lewat hostname service: postgres:5432
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./db:/seed:ro
@@ -38,7 +35,6 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: wilayah-redis
     volumes:
       - redis-data:/data
     restart: unless-stopped

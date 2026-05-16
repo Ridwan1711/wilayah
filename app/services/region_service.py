@@ -1,16 +1,16 @@
-from sqlalchemy import Select, or_, select
+from sqlalchemy import Select, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.cache import RedisCache
 from app.models.region import Region
 
+# Cache key suffix — naikkan bila format filter berubah (invalidasi Redis lama).
+_CACHE_VERSION = "v2"
 
-REGION_LENGTHS = {
-    "province": 2,
-    "regency": 5,
-    "district": 8,
-    "village": 13,
-}
+
+def _code_segment_count():
+    """Jumlah segmen kode wilayah (mis. '32.05.12' → 3)."""
+    return func.cardinality(func.string_to_array(Region.code, "."))
 
 
 def get_region_level(code: str) -> str:
@@ -39,6 +39,19 @@ def serialize_region(region: Region) -> dict[str, str | None]:
     }
 
 
+def _children_statement(parent_code: str) -> Select[tuple[Region]]:
+    """Anak langsung satu tingkat di bawah parent_code (bukan cucu/cicit)."""
+    child_segments = len(parent_code.split(".")) + 1
+    return (
+        select(Region)
+        .where(
+            Region.code.like(f"{parent_code}.%"),
+            _code_segment_count() == child_segments,
+        )
+        .order_by(Region.code)
+    )
+
+
 class RegionService:
     def __init__(self, session: AsyncSession, cache: RedisCache) -> None:
         self.session = session
@@ -46,32 +59,26 @@ class RegionService:
 
     async def get_provinces(self) -> list[dict[str, str | None]]:
         return await self._cached_list(
-            key="regions:provinces",
-            statement=select(Region).where(Region.code.not_like("%.")).order_by(Region.code),
+            key=f"regions:provinces:{_CACHE_VERSION}",
+            statement=select(Region).where(_code_segment_count() == 1).order_by(Region.code),
         )
 
     async def get_regencies(self, province_code: str) -> list[dict[str, str | None]]:
         return await self._cached_list(
-            key=f"regions:regencies:{province_code}",
-            statement=select(Region)
-            .where(Region.code.like(f"{province_code}.%"), Region.code.not_like(f"{province_code}.%.%"))
-            .order_by(Region.code),
+            key=f"regions:regencies:{province_code}:{_CACHE_VERSION}",
+            statement=_children_statement(province_code),
         )
 
     async def get_districts(self, regency_code: str) -> list[dict[str, str | None]]:
         return await self._cached_list(
-            key=f"regions:districts:{regency_code}",
-            statement=select(Region)
-            .where(Region.code.like(f"{regency_code}.%"), Region.code.not_like(f"{regency_code}.%.%"))
-            .order_by(Region.code),
+            key=f"regions:districts:{regency_code}:{_CACHE_VERSION}",
+            statement=_children_statement(regency_code),
         )
 
     async def get_villages(self, district_code: str) -> list[dict[str, str | None]]:
         return await self._cached_list(
-            key=f"regions:villages:{district_code}",
-            statement=select(Region)
-            .where(Region.code.like(f"{district_code}.%"), Region.code.not_like(f"{district_code}.%.%"))
-            .order_by(Region.code),
+            key=f"regions:villages:{district_code}:{_CACHE_VERSION}",
+            statement=_children_statement(district_code),
         )
 
     async def get_detail(self, code: str) -> dict[str, str | None] | None:

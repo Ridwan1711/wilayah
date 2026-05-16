@@ -151,6 +151,54 @@ Import data dari dump ke PostgreSQL. File `wilayah.sql` berasal dari format MySQ
 uvicorn app.main:app --reload
 ```
 
+## Uji Coba dengan Postman
+
+**CORS tidak berlaku di Postman** (hanya browser yang memblokir cross-origin). Kalau request di Postman “muter” lama, biasanya bukan CORS — cek timeout atau response terlalu besar.
+
+### Setup request
+
+| Field | Nilai |
+|-------|--------|
+| Method | `GET` |
+| URL | `https://api-wilayah.ngedeploy.online/api/v1/provinces` |
+| Headers | Tidak wajib (tanpa `Origin` juga boleh) |
+| Body | Kosong |
+
+Tes berurutan:
+
+1. `GET /health` — harus cepat, JSON `status: ok`
+2. `GET /health/db` — DB terhubung
+3. `GET /api/v1/provinces` — ~38 provinsi (bukan puluhan ribu baris)
+4. `GET /api/v1/regencies?province_code=32` — kab/kota Jawa Barat
+
+Contoh endpoint lain:
+
+```http
+GET /api/v1/districts?regency_code=32.05
+GET /api/v1/villages?district_code=32.05.12
+GET /api/v1/search?q=garut
+GET /api/v1/regions/32.05.12.2001
+```
+
+Atau buka Swagger di domain yang sama: `https://api-wilayah.ngedeploy.online/docs` (same-origin, tanpa masalah CORS).
+
+### Kapan CORS relevan?
+
+CORS dipakai saat **frontend di browser** (Flutter web, React, dll.) memanggil API dari domain lain.
+
+Env yang mengatur:
+
+```env
+ALLOWED_ORIGINS=https://manhoodpusat.com,https://ngedeploy.online
+ALLOWED_ORIGIN_REGEX=https://.*\.manhoodpusat\.com,https://.*\.ngedeploy\.online
+```
+
+- Domain frontend harus ada di `ALLOWED_ORIGINS`, atau cocok regex di `ALLOWED_ORIGIN_REGEX`.
+- Setelah ubah env → redeploy.
+- API ini hanya mengizinkan method `GET` dan `OPTIONS`.
+
+Kalau dari browser muncul error CORS di DevTools → tambahkan origin frontend ke env di atas, bukan masalah Postman.
+
 ## Format Response
 
 Response sukses:

@@ -23,8 +23,8 @@ services:
       POSTGRES_DB: wilayah_db
       POSTGRES_USER: wilayah
       POSTGRES_PASSWORD: wilayah_password
-    ports:
-      - "5432:5432"
+    # Tanpa publish port ke host — hindari bentrok 5432/6379 di server (Dokploy, dll).
+    # App mengakses lewat hostname service: postgres:5432
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./db:/seed:ro
@@ -39,8 +39,6 @@ services:
   redis:
     image: redis:7-alpine
     container_name: wilayah-redis
-    ports:
-      - "6379:6379"
     volumes:
       - redis-data:/data
     restart: unless-stopped

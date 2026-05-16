@@ -78,8 +78,19 @@ docker compose up --build
 Service yang akan berjalan:
 
 - API: `http://localhost:8000`
-- PostgreSQL: `localhost:5432`
-- Redis: `localhost:6379`
+- PostgreSQL dan Redis hanya di jaringan internal Docker (hostname `postgres` / `redis`), tidak mem-publish port `5432`/`6379` ke host agar tidak bentrok di server shared (mis. Dokploy).
+
+Untuk dev lokal yang perlu koneksi langsung ke DB/Redis dari host, salin `docker-compose.override.example.yml` menjadi `docker-compose.override.yml`.
+
+## Deploy Dokploy (Compose Service)
+
+1. Upload repo / set root compose ke folder `wilayah_api`.
+2. Pastikan file `.env` ada di service (atai variabel di panel Dokploy). Di dalam stack, `docker-compose.yml` sudah meng-override `DATABASE_URL` dan `REDIS_URL` ke service internal — tidak perlu `localhost` di container app.
+3. Map domain di Dokploy ke container **app** port **8000** (bukan redis/postgres).
+4. Set `APP_ENV=production`, `APP_DEBUG=false`, dan `APP_URL` ke URL publik API.
+5. Redeploy setelah perubahan compose.
+
+Jika deploy gagal dengan `port is already allocated` pada `6379` atau `5432`, pastikan compose terbaru dipakai (redis/postgres tanpa `ports:` ke host).
 
 Saat PostgreSQL pertama kali dibuat, script init akan membaca dump di `db/`, menyesuaikan sintaks MySQL sederhana agar bisa dimuat ke PostgreSQL, lalu membuat index tambahan.
 

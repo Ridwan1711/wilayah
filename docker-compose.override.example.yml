@@ -1,0 +1,9 @@
+# Salin ke docker-compose.override.yml jika perlu akses DB/Redis dari host (dev lokal).
+# File ini otomatis digabung oleh `docker compose` bila ada di folder yang sama.
+services:
+  postgres:
+    ports:
+      - "5432:5432"
+  redis:
+    ports:
+      - "6379:6379"

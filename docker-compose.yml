@@ -1,0 +1,50 @@
+services:
+  app:
+    build: .
+    container_name: wilayah-api
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://wilayah:wilayah_password@postgres:5432/wilayah_db
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: wilayah-postgres
+    environment:
+      POSTGRES_DB: wilayah_db
+      POSTGRES_USER: wilayah
+      POSTGRES_PASSWORD: wilayah_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./db:/seed:ro
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wilayah -d wilayah_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: wilayah-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  redis-data:

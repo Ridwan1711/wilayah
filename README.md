@@ -202,12 +202,19 @@ Kalau dari browser muncul error CORS di DevTools → tambahkan origin frontend k
 ## Format Response
 
 Response sukses:
-
-```json
+https://api-wilayah.ngedeploy.online/api/v1/villages?district_code=32.05.12
+```json 
 {
   "success": true,
   "message": "Data retrieved successfully",
-  "data": []
+  "data": [
+     {
+      "code": "32.05.12.2001",
+      "name": "Cibatu",
+      "level": "village",
+      "parent_code": "32.05.12"
+    }
+  ]
 }
 ```
 

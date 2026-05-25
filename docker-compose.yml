@@ -7,15 +7,15 @@ services:
       DATABASE_URL: postgresql+psycopg://wilayah:wilayah_password@postgres:5432/wilayah_db
       REDIS_URL: redis://redis:6379/0
     # Dokploy: expose port container saja (bukan 8000:8000 ke host).
-    ports:
-      - 8000
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_started
     restart: unless-stopped
-
+    expose:
+      # Dokploy / reverse proxy: hanya di jaringan Docker — tidak bind ke host.
+      - "8000"
   postgres:
     image: postgres:16-alpine
     environment:
